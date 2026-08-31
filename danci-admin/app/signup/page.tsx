@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, type FormEvent } from "react"
+import { useEffect, useState, type FormEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Loader2, Sparkles } from "lucide-react"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -17,7 +18,7 @@ import {
 import { useAuth } from "@/components/auth/auth-provider"
 
 export default function SignUpPage() {
-  const { signUp } = useAuth()
+  const { user, hasAdmin, isLoading, signUp } = useAuth()
   const router = useRouter()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -25,6 +26,16 @@ export default function SignUpPage() {
   const [confirm, setConfirm] = useState("")
   const [error, setError] = useState("")
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (isLoading) return
+    if (user) {
+      router.replace("/books")
+    } else if (hasAdmin) {
+      // 系统管理员已存在，不允许二次注册，直接跳转登录
+      router.replace("/signin")
+    }
+  }, [isLoading, user, hasAdmin, router])
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -68,8 +79,10 @@ export default function SignUpPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>系统管理员注册</CardTitle>
-            <CardDescription>创建管理员账号，用于登录后台</CardDescription>
+            <CardTitle>初始化系统管理员</CardTitle>
+            <CardDescription>
+              系统中尚无管理员，请先注册首个系统管理员账号
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={onSubmit} className="flex flex-col gap-4">

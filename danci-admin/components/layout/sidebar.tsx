@@ -1,21 +1,30 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { BookOpen, Users, LogOut, Mail, Sparkles } from "lucide-react"
+
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/components/auth/auth-provider"
 
-const navItems = [
-  { href: "/books", label: "单词书管理", icon: BookOpen },
-  { href: "/admin-users", label: "管理员管理", icon: Users },
+const allNavItems = [
+  { href: "/books", label: "单词书管理", icon: BookOpen, superAdminOnly: false },
+  { href: "/admin-users", label: "管理员管理", icon: Users, superAdminOnly: true },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { user, signOut } = useAuth()
+  const router = useRouter()
+  const { user, isSuperAdmin, signOut } = useAuth()
+
+  const navItems = allNavItems.filter((item) => !item.superAdminOnly || isSuperAdmin)
+
+  async function handleSignOut() {
+    await signOut()
+    router.replace("/signin")
+  }
 
   return (
     <aside className="flex h-screen w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
@@ -59,7 +68,7 @@ export function Sidebar() {
         <Button
           variant="ghost"
           className="justify-start gap-2 text-sidebar-foreground/70 hover:text-sidebar-accent-foreground"
-          onClick={signOut}
+          onClick={handleSignOut}
         >
           <LogOut className="size-4" />
           退出登录

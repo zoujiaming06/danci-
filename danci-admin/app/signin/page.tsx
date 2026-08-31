@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, type FormEvent } from "react"
+import { useEffect, useState, type FormEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Loader2, Sparkles } from "lucide-react"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -17,12 +18,18 @@ import {
 import { useAuth } from "@/components/auth/auth-provider"
 
 export default function SignInPage() {
-  const { signIn } = useAuth()
+  const { user, isLoading, signIn } = useAuth()
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!isLoading && user) {
+      router.replace("/books")
+    }
+  }, [isLoading, user, router])
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -89,10 +96,6 @@ export default function SignInPage() {
             </form>
           </CardContent>
         </Card>
-
-        <div className="mt-3 rounded-lg border border-dashed p-3 text-center text-xs text-muted-foreground">
-          演示账号：admin@danci.com / admin123
-        </div>
 
         <p className="mt-4 text-center text-sm text-muted-foreground">
           还没有账号？
