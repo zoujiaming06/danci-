@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { eq } from "drizzle-orm"
 
 import { db } from "@/db"
-import { books } from "@/db/schema"
+import { books, words } from "@/db/schema"
 import { getUserOrError } from "@/lib/route-auth"
 
 export async function PATCH(
@@ -50,6 +50,21 @@ export async function DELETE(
   if (auth instanceof NextResponse) return auth
 
   const { id } = await params
-  await db.delete(books).where(eq(books.id, id))
-  return NextResponse.json({ ok: true })
+
+  const [book] = await db
+    .select({ bookId: books.bookId })
+    .from(books)
+    .where(eq(books.id, id))
+    .limit(1)
+
+  if (!book) {
+    return NextResponse.json({ error: "单词书不存在" }, { status: 404 })
+  }
+
+  await db.transaction(async (tx) => {
+    await tx.delete(words).where(eq(words.bookId, book.bookId))
+    await tx.delete(books).where(eq(books.id, id))
+  })
+
+  return NextResponse.json({ ok: true, bookId: book.bookId })
 }

@@ -8,7 +8,7 @@ const outputPath = process.argv[3]
   ? path.resolve(process.argv[3])
   : path.join(path.dirname(inputPath), `${path.basename(inputPath, path.extname(inputPath))}.csv`);
 
-const headers = ["wordRand", "headWord", "content", "bookld"];
+const headers = ["word_rank", "head_word", "content", "book_id"];
 
 function escapeCsv(value) {
   const text = String(value ?? "");
