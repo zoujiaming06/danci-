@@ -1,0 +1,45 @@
+const fs = require("node:fs");
+const path = require("node:path");
+
+const inputPath = process.argv[2]
+  ? path.resolve(process.argv[2])
+  : path.resolve(__dirname, "../temp/PEPXiaoXue3_1.json");
+const outputPath = process.argv[3]
+  ? path.resolve(process.argv[3])
+  : path.join(path.dirname(inputPath), `${path.basename(inputPath, path.extname(inputPath))}.csv`);
+
+const headers = ["wordRand", "headWord", "content", "bookld"];
+
+function escapeCsv(value) {
+  const text = String(value ?? "");
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+const lines = fs
+  .readFileSync(inputPath, "utf8")
+  .split(/\r?\n/)
+  .map((line) => line.trim())
+  .filter(Boolean);
+
+const rows = lines.map((line, index) => {
+  let item;
+
+  try {
+    item = JSON.parse(line);
+  } catch (error) {
+    throw new Error(`第 ${index + 1} 行不是有效的 JSON：${error.message}`);
+  }
+
+  return [
+    item.wordRank,
+    item.headWord,
+    JSON.stringify(item.content ?? {}),
+    item.bookId,
+  ]
+    .map(escapeCsv)
+    .join(",");
+});
+
+fs.writeFileSync(outputPath, `${headers.join(",")}\n${rows.join("\n")}\n`, "utf8");
+console.log(`已生成 CSV：${outputPath}`);
+console.log(`共转换 ${rows.length} 条记录`);
