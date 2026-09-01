@@ -87,3 +87,8 @@ ORM 工具 一种，一系列的
   - push  数据库推送
   - studio  数据库可视化工具
  
+ ## words 表
+ gitup 下载 zip -> json 文件 (178kb)
+   想创建一个 words 表 导入这个数据？ json -> sql/csv 直接导入数据库
+   ai 上下文 # json 转换成csv 格式 字段.... 178kb token 
+   ai 写一段格式转换脚本(1000 token),本地运行
