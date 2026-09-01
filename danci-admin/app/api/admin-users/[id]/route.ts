@@ -52,6 +52,13 @@ export async function PATCH(
       return NextResponse.json({ error: "密码至少 6 位" }, { status: 400 })
     }
 
+    if (id === auth.id && (role !== undefined || isActive !== undefined)) {
+      return NextResponse.json(
+        { error: "系统管理员不能修改自己的角色或状态" },
+        { status: 403 }
+      )
+    }
+
     // 防止把最后一个系统管理员降级或停用
     const isDemoting =
       target.role === ROLE_SUPER_ADMIN && role !== undefined && role !== ROLE_SUPER_ADMIN

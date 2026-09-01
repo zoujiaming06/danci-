@@ -78,6 +78,8 @@ export default function AdminUsersPage() {
   const [formError, setFormError] = useState("")
   const [saving, setSaving] = useState(false)
 
+  const editingCurrentUser = editing?.id === currentUser?.id
+
   useEffect(() => {
     if (authLoading) return
     if (!isSuperAdmin) {
@@ -154,8 +156,9 @@ export default function AdminUsersPage() {
           body: JSON.stringify({
             name: form.name,
             email: form.email,
-            role: form.role,
-            isActive: form.isActive,
+            ...(editingCurrentUser
+              ? {}
+              : { role: form.role, isActive: form.isActive }),
             password: form.password || undefined,
           }),
         })
@@ -357,14 +360,17 @@ export default function AdminUsersPage() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <Label htmlFor="admin-role">角色</Label>
+              <Label htmlFor="admin-role">
+                  角色{editingCurrentUser ? "（当前账号不可修改）" : ""}
+                </Label>
               <select
                 id="admin-role"
                 value={form.role}
+                disabled={editingCurrentUser}
                 onChange={(e) =>
                   setForm({ ...form, role: e.target.value as AdminRole })
                 }
-                className="h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <option value={ROLE_ADMIN}>{ROLE_LABELS[ROLE_ADMIN]}</option>
                 <option value={ROLE_SUPER_ADMIN}>
@@ -375,10 +381,13 @@ export default function AdminUsersPage() {
 
             {editing && (
               <div className="flex flex-col gap-2">
-                <Label htmlFor="admin-active">状态</Label>
+                <Label htmlFor="admin-active">
+                  状态{editingCurrentUser ? "（当前账号不可修改）" : ""}
+                </Label>
                 <select
                   id="admin-active"
                   value={form.isActive ? "active" : "disabled"}
+                  disabled={editingCurrentUser}
                   onChange={(e) =>
                     setForm({ ...form, isActive: e.target.value === "active" })
                   }
