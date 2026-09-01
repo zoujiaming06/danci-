@@ -1,176 +1,87 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { Search, Plus, Pencil, Trash2, BookOpen } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { FormEvent, useEffect, useMemo, useState } from "react"
+import { BookOpen, Pencil, Plus, Search, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
-interface Book {
+type Book = {
   id: string
-  name: string
-  description: string
+  title: string
   wordCount: number
-  status: "已发布" | "草稿"
+  coverUrl: string | null
+  bookId: string
+  tags: string[]
   createdAt: string
 }
 
-const initialBooks: Book[] = [
-  {
-    id: "1",
-    name: "六级核心词汇",
-    description: "大学英语六级高频核心词汇",
-    wordCount: 2500,
-    status: "已发布",
-    createdAt: "2026-03-01",
-  },
-  {
-    id: "2",
-    name: "考研英语词汇",
-    description: "考研英语大纲必备词汇",
-    wordCount: 5500,
-    status: "已发布",
-    createdAt: "2026-03-10",
-  },
-  {
-    id: "3",
-    name: "雅思词汇精选",
-    description: "雅思考试高频场景词汇",
-    wordCount: 3200,
-    status: "草稿",
-    createdAt: "2026-04-02",
-  },
-  {
-    id: "4",
-    name: "托福核心词汇",
-    description: "托福听力与阅读核心词汇",
-    wordCount: 1800,
-    status: "已发布",
-    createdAt: "2026-05-18",
-  },
-  {
-    id: "5",
-    name: "初中英语词汇",
-    description: "初中阶段基础必备词汇",
-    wordCount: 1600,
-    status: "草稿",
-    createdAt: "2026-06-20",
-  },
-]
+type FormState = { title: string; wordCount: string; coverUrl: string; bookId: string; tags: string }
+const emptyForm: FormState = { title: "", wordCount: "0", coverUrl: "", bookId: "", tags: "" }
+
+async function requestJson(url: string, options?: RequestInit) {
+  const response = await fetch(url, options)
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(data.error || "请求失败")
+  return data
+}
 
 export default function BooksPage() {
-  const [books, setBooks] = useState<Book[]>(initialBooks)
+  const [books, setBooks] = useState<Book[]>([])
   const [query, setQuery] = useState("")
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<Book | null>(null)
+  const [form, setForm] = useState(emptyForm)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState("")
+
+  async function loadBooks() {
+    setLoading(true)
+    try { setBooks((await requestJson("/api/books")).books) }
+    catch (err) { setError(err instanceof Error ? err.message : "加载失败") }
+    finally { setLoading(false) }
+  }
+
+  useEffect(() => { void loadBooks() }, [])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return books
-    return books.filter((b) => b.name.toLowerCase().includes(q))
+    return q ? books.filter((book) => `${book.title} ${book.bookId}`.toLowerCase().includes(q)) : books
   }, [books, query])
 
-  function removeBook(id: string) {
-    setBooks((prev) => prev.filter((b) => b.id !== id))
+  function openCreate() { setEditing(null); setForm(emptyForm); setError(""); setOpen(true) }
+  function openEdit(book: Book) {
+    setEditing(book)
+    setForm({ title: book.title, wordCount: String(book.wordCount), coverUrl: book.coverUrl || "", bookId: book.bookId, tags: book.tags.join(",") })
+    setError(""); setOpen(true)
   }
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="font-heading text-2xl font-semibold">单词书管理</h1>
-        <p className="text-sm text-muted-foreground">
-          管理系统中所有的单词书及其学习内容。
-        </p>
-      </div>
+  async function submit(event: FormEvent) {
+    event.preventDefault(); setSaving(true); setError("")
+    try {
+      const url = editing ? `/api/books/${editing.id}` : "/api/books"
+      await requestJson(url, { method: editing ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) })
+      setOpen(false); await loadBooks()
+    } catch (err) { setError(err instanceof Error ? err.message : "保存失败") }
+    finally { setSaving(false) }
+  }
 
-      <div className="flex items-center justify-between gap-3">
-        <div className="relative w-full max-w-xs">
-          <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="搜索单词书..."
-            className="pl-8"
-          />
-        </div>
-        <Button>
-          <Plus /> 新增单词书
-        </Button>
-      </div>
+  async function removeBook(book: Book) {
+    if (!window.confirm(`确定删除「${book.title}」吗？`)) return
+    try { await requestJson(`/api/books/${book.id}`, { method: "DELETE" }); await loadBooks() }
+    catch (err) { setError(err instanceof Error ? err.message : "删除失败") }
+  }
 
-      <div className="overflow-hidden rounded-xl border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-1/3">单词书</TableHead>
-              <TableHead>单词数</TableHead>
-              <TableHead>状态</TableHead>
-              <TableHead>创建时间</TableHead>
-              <TableHead className="text-right">操作</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="h-24 text-center text-muted-foreground"
-                >
-                  暂无单词书
-                </TableCell>
-              </TableRow>
-            ) : (
-              filtered.map((book) => (
-                <TableRow key={book.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                        <BookOpen className="size-4" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{book.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {book.description}
-                        </span>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{book.wordCount.toLocaleString()}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={book.status === "已发布" ? "default" : "secondary"}
-                    >
-                      {book.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{book.createdAt}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon-sm" aria-label="编辑">
-                        <Pencil />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="删除"
-                        onClick={() => removeBook(book.id)}
-                      >
-                        <Trash2 className="text-destructive" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
-  )
+  return <div className="flex flex-col gap-6">
+    <div><h1 className="font-heading text-2xl font-semibold">单词书管理</h1><p className="text-sm text-muted-foreground">管理系统中的单词书及其学习内容。</p></div>
+    <div className="flex items-center justify-between gap-3"><div className="relative w-full max-w-xs"><Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索标题或 bookId..." className="pl-8" /></div><Button onClick={openCreate}><Plus /> 新增单词书</Button></div>
+    {error && <p className="text-sm text-destructive">{error}</p>}
+    <Card><CardContent className="p-0"><Table><TableHeader><TableRow><TableHead>封面</TableHead><TableHead>标题</TableHead><TableHead>单词数量</TableHead><TableHead>bookId</TableHead><TableHead>标签</TableHead><TableHead className="text-right">操作</TableHead></TableRow></TableHeader><TableBody>{loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">加载中...</TableCell></TableRow> : filtered.length === 0 ? <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">暂无单词书</TableCell></TableRow> : filtered.map((book) => <TableRow key={book.id}><TableCell>{book.coverUrl ? <img src={book.coverUrl} alt={book.title} className="size-12 rounded object-cover" /> : <div className="flex size-12 items-center justify-center rounded bg-muted"><BookOpen className="size-5 text-muted-foreground" /></div>}</TableCell><TableCell className="font-medium">{book.title}</TableCell><TableCell>{book.wordCount.toLocaleString()}</TableCell><TableCell className="font-mono text-xs">{book.bookId}</TableCell><TableCell><div className="flex flex-wrap gap-1">{book.tags.map((tag) => <Badge variant="secondary" key={tag}>{tag}</Badge>)}</div></TableCell><TableCell><div className="flex justify-end gap-1"><Button variant="ghost" size="icon-sm" aria-label="编辑" onClick={() => openEdit(book)}><Pencil /></Button><Button variant="ghost" size="icon-sm" aria-label="删除" onClick={() => void removeBook(book)}><Trash2 className="text-destructive" /></Button></div></TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
+    <Dialog open={open} onOpenChange={setOpen}><DialogContent><DialogHeader><DialogTitle>{editing ? "编辑单词书" : "新增单词书"}</DialogTitle></DialogHeader><form onSubmit={submit} className="grid gap-4"><div className="grid gap-2"><Label htmlFor="title">标题</Label><Input id="title" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div><div className="grid gap-2"><Label htmlFor="wordCount">单词数量</Label><Input id="wordCount" required type="number" min="0" value={form.wordCount} onChange={(e) => setForm({ ...form, wordCount: e.target.value })} /></div><div className="grid gap-2"><Label htmlFor="coverUrl">封面 URL</Label><Input id="coverUrl" type="url" value={form.coverUrl} onChange={(e) => setForm({ ...form, coverUrl: e.target.value })} /></div><div className="grid gap-2"><Label htmlFor="bookId">bookId</Label><Input id="bookId" required value={form.bookId} onChange={(e) => setForm({ ...form, bookId: e.target.value })} /></div><div className="grid gap-2"><Label htmlFor="tags">标签（逗号分隔）</Label><Input id="tags" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} /></div><DialogFooter><Button type="button" variant="outline" onClick={() => setOpen(false)}>取消</Button><Button type="submit" disabled={saving}>{saving ? "保存中..." : "保存"}</Button></DialogFooter></form></DialogContent></Dialog>
+  </div>
 }
